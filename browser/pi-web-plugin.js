@@ -72,7 +72,7 @@ function makeRenderer(kind, getCall) {
     const paths = source.split("\n").map((s) => s.trim()).filter((s) => s !== "" && !s.startsWith("#"));
     if (paths.length === 0) throw new Error(`Empty ${kind} fence`);
 
-    const root = el("div", "display:flex;flex-direction:column;align-items:flex-start;gap:12px;margin:0");
+    const root = el("div", "display:flex;flex-direction:column;align-items:flex-start;gap:12px;margin:0;width:100%;max-width:100%;min-width:0;box-sizing:border-box");
     root.className = "pi-web-media";
     for (const path of paths) {
       const box = el("figure", "margin:0;display:flex;flex-direction:column;gap:4px");
@@ -87,11 +87,14 @@ function makeRenderer(kind, getCall) {
         player.controls = true;
         player.preload = "metadata";
         player.src = url;
-        // 默认显示得小一些（最宽 480px）；要看大图用播放器自带的全屏按钮。
-        // 用 setProperty(..., "important") 并限制外层容器，防止聊天区的样式把它撑满。
+        // 宽度取「可用宽度」和 480px 里较小的那个：电脑上最宽 480px，手机上不超出屏幕。
+        // width:100% + max-width:480px 就是 min(父容器宽度, 480px)；min-width:0 防止 flex 子项按内容撑宽。
+        // 用 setProperty(..., "important")，防止聊天区的样式把它撑满。要看大图用播放器自带的全屏按钮。
         const MAX_W = "480px";
+        box.style.setProperty("width", "100%", "important");
         box.style.setProperty("max-width", MAX_W, "important");
-        box.style.setProperty("width", MAX_W, "important");
+        box.style.setProperty("min-width", "0", "important");
+        box.style.setProperty("box-sizing", "border-box", "important");
         player.style.setProperty("width", "100%", "important");
         player.style.setProperty("max-width", MAX_W, "important");
         if (info.kind === "video") {

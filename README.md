@@ -68,7 +68,8 @@ Then reload the PI WEB tab. The plugin is on by default; turn it off in
    plugin operation can return bytes), joins them into a `Blob` and plays it from
    an object URL. Loaded files are cached in the page by path and modification
    time, so scrolling past a block again does not read the file again.
-3. Players are drawn at most 480 px wide (video also at most 40% of the window
+3. Players are drawn at the smaller of the available width and 480 px, so they
+   fit a phone screen (video also at most 40% of the window
    height). Use the player's own full-screen button for a larger view.
 
 ### What the server half reads
