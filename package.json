@@ -1,0 +1,47 @@
+{
+  "name": "pi-web-media",
+  "version": "0.1.0",
+  "description": "PI WEB plugin that plays video and audio files inline in the chat transcript.",
+  "license": "MIT",
+  "author": "kingoliang",
+  "type": "module",
+  "keywords": [
+    "pi-package",
+    "pi-web",
+    "pi-web-plugin",
+    "video",
+    "audio",
+    "media"
+  ],
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "files": [
+    "browser",
+    "server",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node test/server.test.mjs"
+  },
+  "piWeb": {
+    "plugins": [
+      {
+        "id": "media",
+        "browserRoot": "browser",
+        "module": "browser/pi-web-plugin.js",
+        "serverModule": "server/server-plugin.js",
+        "machineSpecific": true
+      }
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kingoliang/pi-web-media.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kingoliang/pi-web-media/issues"
+  },
+  "homepage": "https://github.com/kingoliang/pi-web-media#readme"
+}
