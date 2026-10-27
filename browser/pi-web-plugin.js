@@ -33,24 +33,44 @@ function humanSize(n) {
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
 }
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const CHUNK_TRIES = 3; // 单块读失败自动重试几次（大文件偶发超时时不至于整个失败）
+
+// 未读完的文件：路径|mtime -> { info, parts, offset }。重试时从上次读到的位置接着读，不从头来。
+const partial = new Map();
+
+async function withRetry(fn) {
+  let last;
+  for (let i = 0; i < CHUNK_TRIES; i += 1) {
+    try {
+      return await fn();
+    } catch (err) {
+      last = err;
+      if (i + 1 < CHUNK_TRIES) await sleep(1000 * 2 ** i);
+    }
+  }
+  throw last;
+}
+
 async function loadBlob(callOperation, path, onProgress) {
-  const info = await callOperation("media.info", { path });
+  const info = await withRetry(() => callOperation("media.info", { path }));
   const key = `${info.path}|${info.mtimeMs}`;
   const hit = cache.get(key);
   if (hit !== undefined) return hit;
   const job = (async () => {
-    const parts = [];
-    let offset = 0;
-    while (offset < info.size) {
-      const r = await callOperation("media.read", { path: info.path, offset, length: info.chunk });
+    const st = partial.get(key) ?? { parts: [], offset: 0 };
+    partial.set(key, st);
+    while (st.offset < info.size) {
+      const r = await withRetry(() => callOperation("media.read", { path: info.path, offset: st.offset, length: info.chunk }));
       const bytes = b64ToBytes(r.data);
       if (bytes.length === 0) break;
-      parts.push(bytes);
-      offset += bytes.length;
-      onProgress(offset, info.size);
+      st.parts.push(bytes);
+      st.offset += bytes.length;
+      onProgress(st.offset, info.size);
       if (r.eof) break;
     }
-    const url = URL.createObjectURL(new Blob(parts, { type: info.mime }));
+    partial.delete(key);
+    const url = URL.createObjectURL(new Blob(st.parts, { type: info.mime }));
     return { url, info };
   })();
   remember(key, job);
@@ -80,7 +100,7 @@ function makeRenderer(kind, getCall) {
       box.append(status);
       root.append(box);
 
-      loadBlob(callOperation, path, (done, total) => {
+      const load = () => loadBlob(callOperation, path, (done, total) => {
         status.textContent = `正在加载 ${path} … ${Math.floor((done / total) * 100)}%`;
       }).then(({ url, info }) => {
         const name = info.path.split("/").pop();
@@ -144,10 +164,22 @@ function makeRenderer(kind, getCall) {
         status.append(link);
         box.insertBefore(player, status);
       }).catch((err) => {
-        status.textContent = `无法加载 ${path}：${err instanceof Error ? err.message : String(err)}`;
+        status.textContent = `无法加载 ${path}：${err instanceof Error ? err.message : String(err)} `;
         status.style.color = "var(--pi-danger, #c33)";
         status.style.opacity = "1";
+        // 重试按钮：从上次读到的块接着读
+        const retry = el("button", "margin-left:6px;padding:1px 10px;font-size:12px;border-radius:4px;border:1px solid currentColor;background:transparent;color:inherit;cursor:pointer", "重试");
+        retry.type = "button";
+        retry.addEventListener("click", () => {
+          retry.remove();
+          status.style.color = "";
+          status.style.opacity = ".75";
+          status.textContent = `正在重试 ${path} …`;
+          load();
+        });
+        status.append(retry);
       });
+      load();
     }
     return root;
   };

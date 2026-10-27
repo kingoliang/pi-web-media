@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.1
+
+- Each 1 MiB read is retried up to 3 times (1 s, 2 s backoff) before a block
+  gives up, so one slow answer no longer fails a large file.
+- A block that failed shows a 重试 (Retry) button; retrying resumes from the
+  last piece that arrived instead of reading the file again from the start.
+
 ## 0.2.0
 
 - `image` code fences show image files (`.png .jpg .jpeg .webp .gif .avif

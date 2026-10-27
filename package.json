@@ -1,6 +1,6 @@
 {
   "name": "pi-web-media",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "PI WEB plugin that plays video and audio files and shows images inline in the chat transcript.",
   "license": "MIT",
   "author": "kingoliang",

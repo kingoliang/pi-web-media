@@ -25,7 +25,7 @@ player or an image:
 
 One path per line; several paths draw several players or images. Lines starting with `#`
 are ignored. If a file cannot be loaded, the block says why in place of the
-player. If the plugin is off or missing, the block stays plain code, so nothing
+player and offers a 重试 (Retry) button that resumes where the read stopped. If the plugin is off or missing, the block stays plain code, so nothing
 is lost.
 
 This makes it easy for an agent to show what it generated: it writes the fence
