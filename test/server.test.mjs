@@ -2,7 +2,7 @@
 // 运行：node /opt/pi-web-media/test/server.test.mjs
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readFile, symlink, rm, mkdir } from "node:fs/promises";
+import { readFile, symlink, rm, mkdir, writeFile } from "node:fs/promises";
 import plugin from "../server/server-plugin.js";
 
 const logs = [];
@@ -38,6 +38,24 @@ async function readAll(path, info) {
 const sha = (b) => createHash("sha256").update(b).digest("hex");
 assert.equal(sha(await readAll(video, vi)), sha(await readFile(video))); ok("video 分块拼回后 sha256 一致");
 assert.equal(sha(await readAll(audio, ai)), sha(await readFile(audio))); ok("audio 分块拼回后 sha256 一致");
+
+// 2b. 图片：1×1 PNG 写到 /tmp（默认白名单），kind=image，分块拼回一致
+await mkdir("/tmp/pi-web-media-img", { recursive: true });
+const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+const image = "/tmp/pi-web-media-img/dot.png";
+await writeFile(image, png);
+const ii = await operations["media.info"]({ path: image }, sig);
+assert.equal(ii.kind, "image"); assert.equal(ii.mime, "image/png"); assert.equal(ii.size, png.length);
+ok(`image info: ${ii.size} bytes`);
+assert.equal(sha(await readAll(image, ii)), sha(png)); ok("image 分块拼回后 sha256 一致");
+for (const [ext, mime] of [[".jpg", "image/jpeg"], [".webp", "image/webp"]]) {
+  const p = `/tmp/pi-web-media-img/dot${ext}`;
+  await writeFile(p, png);
+  const r = await operations["media.info"]({ path: p }, sig);
+  assert.equal(r.kind, "image"); assert.equal(r.mime, mime);
+}
+ok("jpg/webp 识别为 image");
+await rm("/tmp/pi-web-media-img", { recursive: true, force: true });
 
 // 3. 越界 offset
 const tail = await operations["media.read"]({ path: video, offset: vi.size + 10 }, sig);

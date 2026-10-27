@@ -1,10 +1,10 @@
-// PI WEB 浏览器端插件：把聊天里的 ```video / ```audio 代码块渲染成播放器。
+// PI WEB 浏览器端插件：把聊天里的 ```video / ```audio 代码块渲染成播放器，```image 渲染成图片。
 //
 // 用法（agent 或用户在回复里写）：
 //   ```video
 //   /opt/h3-hrx/out/fox_5s.mp4
 //   ```
-// 代码块里写本机文件的绝对路径（一行一个，可以写多个）。```audio 同理。
+// 代码块里写本机文件的绝对路径（一行一个，可以写多个）。```audio、```image 同理。
 // 文件由本插件的服务端分块读出（只允许白名单目录），在浏览器里拼成 Blob 播放，所以不经过 Files 面板。
 // 渲染失败时抛错，PI WEB 会保留原来的代码块。
 
@@ -83,6 +83,39 @@ function makeRenderer(kind, getCall) {
       loadBlob(callOperation, path, (done, total) => {
         status.textContent = `正在加载 ${path} … ${Math.floor((done / total) * 100)}%`;
       }).then(({ url, info }) => {
+        const name = info.path.split("/").pop();
+        if (info.kind === "image") {
+          // 图片：最宽 720px、最高 70vh，保持比例；点击在新标签页看原图
+          const MAX_IMG_W = "720px";
+          box.style.setProperty("width", "100%", "important");
+          box.style.setProperty("max-width", MAX_IMG_W, "important");
+          box.style.setProperty("min-width", "0", "important");
+          box.style.setProperty("box-sizing", "border-box", "important");
+          const img = document.createElement("img");
+          img.src = url;
+          img.alt = name;
+          img.loading = "lazy";
+          img.style.setProperty("display", "block");
+          img.style.setProperty("max-width", "100%", "important");
+          img.style.setProperty("max-height", "70vh", "important");
+          img.style.setProperty("width", "auto", "important");
+          img.style.setProperty("height", "auto", "important");
+          img.style.setProperty("object-fit", "contain");
+          img.style.setProperty("border-radius", "6px");
+          img.style.setProperty("cursor", "zoom-in");
+          const open = el("a", "display:block;line-height:0");
+          open.href = url;
+          open.target = "_blank";
+          open.rel = "noopener";
+          open.append(img);
+          const link = el("a", "color:inherit", "下载");
+          link.href = url;
+          link.download = name;
+          status.textContent = `${name} · ${humanSize(info.size)} · `;
+          status.append(link);
+          box.insertBefore(open, status);
+          return;
+        }
         const player = document.createElement(info.kind === "video" ? "video" : "audio");
         player.controls = true;
         player.preload = "metadata";
@@ -104,7 +137,6 @@ function makeRenderer(kind, getCall) {
           player.style.setProperty("background", "#000");
         }
         if (info.kind === "video") player.playsInline = true;
-        const name = info.path.split("/").pop();
         const link = el("a", "color:inherit", "下载");
         link.href = url;
         link.download = name;
@@ -132,6 +164,7 @@ const plugin = {
         codeFenceRenderers: [
           { id: "video", language: "video", render: makeRenderer("video", getCall) },
           { id: "audio", language: "audio", render: makeRenderer("audio", getCall) },
+          { id: "image", language: "image", render: makeRenderer("image", getCall) },
         ],
       },
       dispose: () => {

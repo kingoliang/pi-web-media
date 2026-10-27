@@ -1,10 +1,13 @@
 # pi-web-media
 
-A PI WEB plugin that plays video and audio files inline in the chat transcript.
+A PI WEB plugin that plays video and audio files, and shows image files, inline
+in the chat transcript.
 
-PI WEB's transcript draws text and images, but not video or audio. With this
-plugin, a fenced code block whose language is `video` or `audio` and whose body
-is a file path on the machine becomes a player:
+PI WEB's transcript draws text and images that come with a message, but not
+video or audio, and it cannot show an image that only exists as a file on the
+machine. With this plugin, a fenced code block whose language is `video`,
+`audio` or `image` and whose body is a file path on the machine becomes a
+player or an image:
 
 ````markdown
 ```video
@@ -14,9 +17,13 @@ is a file path on the machine becomes a player:
 ```audio
 /opt/h3-hrx/out/fox_5s.wav
 ```
+
+```image
+/opt/comfyui/output/ComfyUI_00001_.png
+```
 ````
 
-One path per line; several paths draw several players. Lines starting with `#`
+One path per line; several paths draw several players or images. Lines starting with `#`
 are ignored. If a file cannot be loaded, the block says why in place of the
 player. If the plugin is off or missing, the block stays plain code, so nothing
 is lost.
@@ -61,7 +68,8 @@ Then reload the PI WEB tab. The plugin is on by default; turn it off in
 
 ## How it works
 
-1. The browser half registers code-fence renderers for `video` and `audio`.
+1. The browser half registers code-fence renderers for `video`, `audio` and
+   `image`.
    When a fence settles in the transcript, it reads the paths from the fence body.
 2. For each path it calls the server half's `media.info` operation, then reads
    the file in 1 MiB pieces with `media.read` (base64 in JSON, the only way a
@@ -71,17 +79,19 @@ Then reload the PI WEB tab. The plugin is on by default; turn it off in
 3. Players are drawn at the smaller of the available width and 480 px, so they
    fit a phone screen (video also at most 40% of the window
    height). Use the player's own full-screen button for a larger view.
+   Images are drawn at most 720 px wide and 70% of the window height, keeping
+   their proportions; click one to open it at full size in a new tab.
 
 ### What the server half reads
 
-Only regular files with a known audio or video extension, under a set of allowed
+Only regular files with a known audio, video or image extension, under a set of allowed
 directories. Each path is resolved with `realpath` before the check, so `..` and
 symbolic links cannot leave the allowed directories.
 
 | Setting | Default |
 |---|---|
 | Allowed directories | `/opt/h3-hrx/out`, `/opt/comfyui/output`, `/home/kingo/projects`, `/tmp` (directories that do not exist are skipped) |
-| Extensions | `.mp4 .m4v .webm .mov .mkv .mp3 .wav .ogg .oga .m4a .aac .flac .opus` |
+| Extensions | video `.mp4 .m4v .webm .mov .mkv`; audio `.mp3 .wav .ogg .oga .m4a .aac .flac .opus`; image `.png .jpg .jpeg .webp .gif .avif .bmp` |
 | Largest file | 512 MiB |
 
 Set your own allowed directories in the PI WEB config, then restart the session
@@ -97,7 +107,8 @@ daemon:
 
 The plugin runs no commands and contacts no network service. Whether the browser
 can play a format is up to the browser: MP4 (H.264/AAC), WebM, MP3, WAV and Ogg
-play everywhere; MKV and MOV depend on the codecs inside.
+play everywhere; MKV and MOV depend on the codecs inside. PNG, JPEG, WebP and GIF
+show everywhere; AVIF and BMP depend on the browser.
 
 ## Development
 

@@ -1,9 +1,9 @@
-// PI WEB 服务端插件：按路径读取本机的视频/音频文件，分块以 base64 返回给浏览器。
+// PI WEB 服务端插件：按路径读取本机的视频/音频/图片文件，分块以 base64 返回给浏览器。
 //
 // 为什么分块：插件操作的结果要整块转成 JSON 经会话守护进程转发，大文件一次返回会占满内存；
 // 浏览器每次取 1 MiB，自己拼起来再播放。
 //
-// 安全：只允许读白名单目录（settings.roots，默认见下）里、扩展名是音视频的普通文件；
+// 安全：只允许读白名单目录（settings.roots，默认见下）里、扩展名是音视频或图片的普通文件；
 // 路径先 realpath 解析软链再检查，防止 ../ 或软链跳出白名单。
 import { open, realpath, stat } from "node:fs/promises";
 import path from "node:path";
@@ -19,7 +19,15 @@ const MIME = {
   ".mp4": "video/mp4", ".m4v": "video/mp4", ".webm": "video/webm", ".mov": "video/quicktime", ".mkv": "video/x-matroska",
   ".mp3": "audio/mpeg", ".wav": "audio/wav", ".ogg": "audio/ogg", ".oga": "audio/ogg", ".m4a": "audio/mp4",
   ".aac": "audio/aac", ".flac": "audio/flac", ".opus": "audio/ogg",
+  ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp",
+  ".gif": "image/gif", ".avif": "image/avif", ".bmp": "image/bmp",
 };
+
+function kindOf(mime) {
+  if (mime.startsWith("video/")) return "video";
+  if (mime.startsWith("image/")) return "image";
+  return "audio";
+}
 
 const CHUNK_MAX = 1024 * 1024;          // 每次最多读 1 MiB
 const FILE_MAX = 512 * 1024 * 1024;     // 单个文件上限 512 MiB
@@ -38,7 +46,7 @@ async function resolveAllowed(roots, input) {
   const st = await stat(real);
   if (!st.isFile()) throw new Error(`不是普通文件：${real}`);
   if (st.size > FILE_MAX) throw new Error(`文件太大：${st.size} 字节（上限 ${FILE_MAX}）`);
-  return { real, mime, size: st.size, mtimeMs: st.mtimeMs, kind: mime.startsWith("video/") ? "video" : "audio" };
+  return { real, mime, size: st.size, mtimeMs: st.mtimeMs, kind: kindOf(mime) };
 }
 
 export default {
